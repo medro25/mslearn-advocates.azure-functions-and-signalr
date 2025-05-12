@@ -1,43 +1,37 @@
+#!/bin/bash
+
 # To use the Microsoft Learn Sandbox in the training module
 # https://learn.microsoft.com/training/modules/automatic-update-of-a-webapp-using-azure-functions-and-signalr
 # To run: sign in to Azure CLI with `az login`
-#
-# bash create-start-resources.sh "SUBSCRIPTION_NAME_OR_ID"
-#
+# Usage: bash create-start-resources.sh "SUBSCRIPTION_NAME_OR_ID"
 
-
-set -e
-
-printf "Param 1: $1\n"
+echo "Param 1: $1"
 
 LOCATION="eastus2"
-printf "Location: $LOCATION\n"
+echo "Location: $LOCATION"
 
 # Check if user is logged into Azure CLI
-if ! az account show &> /dev/null
-then
-  printf "You are not logged into Azure CLI. Please log in with 'az login' and try again."
+if ! az account show &> /dev/null; then
+  echo "You are not logged into Azure CLI. Please log in with 'az login' and try again."
   exit 1
 fi
-printf "User logged in\n"
+
+echo "User logged in"
 
 NODE_ENV_FILE="./.env"
 
 # Get user name
 USER_NAME=$(az account show --query 'user.name' -o tsv)
-# Capture name before `@` in user.name
 USER_NAME=${USER_NAME%%@*}
-printf "User name: $USER_NAME\n"
+echo "User name: $USER_NAME"
 
-# Get the default subscription if not provided as a parameter
+# Get the default subscription from input
 SUBSCRIPTION_NAME=$1
-# Set default subscription
 az configure --defaults subscription="$SUBSCRIPTION_NAME"
-printf "Using subscription: ""$SUBSCRIPTION_NAME""\n"
+echo "Using subscription: $SUBSCRIPTION_NAME"
 
-# Set the resource group name if not provided as a parameter
+# Generate a random string for resource group
 RANDOM_STRING=$(openssl rand -hex 5)
-#printf "Using random string: $RANDOM_STRING\n"
 RESOURCE_GROUP_NAME="$USER_NAME-signalr-$RANDOM_STRING"
 
 # Create a resource group
@@ -46,21 +40,18 @@ az group create \
   --name "$RESOURCE_GROUP_NAME" \
   --location $LOCATION
 
-# Set default resource group
 az configure --defaults group="$RESOURCE_GROUP_NAME"
-
-printf "Using resource group $RESOURCE_GROUP_NAME\n"
+echo "Using resource group $RESOURCE_GROUP_NAME"
 
 export STORAGE_ACCOUNT_NAME=signalr$(openssl rand -hex 5)
 export COMSOSDB_NAME=signalr-cosmos-$(openssl rand -hex 5)
 
-printf "Subscription Name: ""$SUBSCRIPTION_NAME"" \n"
-printf "Resource Group Name: $RESOURCE_GROUP_NAME\n"
-printf "Storage Account Name: $STORAGE_ACCOUNT_NAME\n"
-printf "CosmosDB Name: $COMSOSDB_NAME\n"
+echo "Subscription Name: $SUBSCRIPTION_NAME"
+echo "Resource Group Name: $RESOURCE_GROUP_NAME"
+echo "Storage Account Name: $STORAGE_ACCOUNT_NAME"
+echo "CosmosDB Name: $COMSOSDB_NAME"
 
-printf "Creating Storage Account\n"
-
+echo "Creating Storage Account"
 az storage account create \
   --subscription "$SUBSCRIPTION_NAME" \
   --name $STORAGE_ACCOUNT_NAME \
@@ -68,67 +59,59 @@ az storage account create \
   --kind StorageV2 \
   --sku Standard_LRS
 
-printf "Creating CosmosDB Account\n"
-
-az cosmosdb create  \
+echo "Creating CosmosDB Account"
+az cosmosdb create \
   --subscription "$SUBSCRIPTION_NAME" \
   --name $COMSOSDB_NAME \
   --resource-group $RESOURCE_GROUP_NAME
 
-printf "Creating CosmosDB db\n"
-# Create stocksdb database
+echo "Creating CosmosDB database"
 az cosmosdb sql database create \
-    --account-name $COMSOSDB_NAME \
-    --name stocksdb
+  --account-name $COMSOSDB_NAME \
+  --name stocksdb
 
-printf "Creating CosmosDB container\n"
-# Create stocks container
+echo "Creating CosmosDB container"
 az cosmosdb sql container create \
-    --account-name $COMSOSDB_NAME \
-    --database-name stocksdb \
-    --name stocks \
-    --partition-key-path /symbol
+  --account-name $COMSOSDB_NAME \
+  --database-name stocksdb \
+  --partition-key-path "/symbol"
 
-printf "Get storage connection string\n"
 
+echo "Get storage connection string"
 STORAGE_CONNECTION_STRING=$(az storage account show-connection-string \
---name $(az storage account list \
+  --name $STORAGE_ACCOUNT_NAME \
   --resource-group $RESOURCE_GROUP_NAME \
-  --query [0].name -o tsv) \
---resource-group $RESOURCE_GROUP_NAME \
---query "connectionString" -o tsv)
+  --query "connectionString" -o tsv)
 
-printf "Get account name \n" 
-
+echo "Get CosmosDB account name"
 COSMOSDB_ACCOUNT_NAME=$(az cosmosdb list \
-    --subscription "$SUBSCRIPTION_NAME" \
-    --resource-group $RESOURCE_GROUP_NAME \
-    --query [0].name -o tsv)
+  --subscription "$SUBSCRIPTION_NAME" \
+  --resource-group $RESOURCE_GROUP_NAME \
+  --query [0].name -o tsv)
 
-printf "Get CosmosDB connection string \n"
-
+echo "Get CosmosDB connection string"
 COSMOSDB_CONNECTION_STRING=$(az cosmosdb keys list --type connection-strings \
   --name $COSMOSDB_ACCOUNT_NAME \
   --resource-group $RESOURCE_GROUP_NAME \
   --subscription "$SUBSCRIPTION_NAME" \
   --query "connectionStrings[?description=='Primary SQL Connection String'].connectionString" -o tsv)
 
-printf "\n\nReplace <STORAGE_CONNECTION_STRING> with:\n$STORAGE_CONNECTION_STRING\n\nReplace <COSMOSDB_CONNECTION_STRING> with:\n$COSMOSDB_CONNECTION_STRING"
+echo -e "\nReplace <STORAGE_CONNECTION_STRING> with:\n$STORAGE_CONNECTION_STRING"
+echo -e "\nReplace <COSMOSDB_CONNECTION_STRING> with:\n$COSMOSDB_CONNECTION_STRING"
 
-# create a .env file with the connection strings and keys
-cat >> $NODE_ENV_FILE <<EOF2
+# Write to .env file
+cat >> $NODE_ENV_FILE <<EOF
 STORAGE_CONNECTION_STRING=$STORAGE_CONNECTION_STRING
 COSMOSDB_CONNECTION_STRING=$COSMOSDB_CONNECTION_STRING
-EOF2
+EOF
 
-# put resource group name in .env file
 echo -e "RESOURCE_GROUP_NAME=$RESOURCE_GROUP_NAME" >> $NODE_ENV_FILE
-printf "\n\nRESOURCE_GROUP_NAME=$RESOURCE_GROUP_NAME"
 
+echo -e "\nRESOURCE_GROUP_NAME=$RESOURCE_GROUP_NAME"
 
 # Validate the .env file
 if [ -f "$NODE_ENV_FILE" ]; then
-  printf "\n\nThe .env file was created successfully."
+  echo -e "\nThe .env file was created successfully."
 else
-  printf "\n\nThe .env file was not created."
+  echo -e "\nThe .env file was not created."
 fi
