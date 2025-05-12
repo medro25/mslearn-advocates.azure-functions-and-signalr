@@ -1,7 +1,8 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js project to Azure Function App - api-Amine
+name: Server
+
 
 on:
   push:
@@ -10,6 +11,8 @@ on:
   workflow_dispatch:
 
 env:
+env:
+  PACKAGE_PATH: 'start/server'
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
   NODE_VERSION: '20.x' # set this to the node version to use (supports 8.x, 10.x, 12.x)
 
@@ -29,13 +32,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: 'Resolve Project Dependencies Using Npm'
-        shell: pwsh
-        run: |
-          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-          npm install
-          npm run build --if-present
-          npm run test --if-present
-          popd
+  shell: bash
+  run: |
+    pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/${{ env.PACKAGE_PATH }}'
+    npm install
+    npm run build --if-present
+    npm run test --if-present
+    popd
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
