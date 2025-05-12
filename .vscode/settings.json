@@ -1,0 +1,10 @@
+{
+    "azureFunctions.projectSubpath": "mslearn-advocates.azure-functions-and-signalr\\start\\server",
+    "azureFunctions.deploySubpath": "mslearn-advocates.azure-functions-and-signalr\\start\\server",
+    "azureFunctions.postDeployTask": "npm install (functions)",
+    "azureFunctions.projectLanguage": "TypeScript",
+    "azureFunctions.projectRuntime": "~4",
+    "debug.internalConsoleOptions": "neverOpen",
+    "azureFunctions.projectLanguageModel": 4,
+    "azureFunctions.preDeployTask": "npm prune (functions)"
+}
